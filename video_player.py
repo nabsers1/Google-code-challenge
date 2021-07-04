@@ -1,8 +1,9 @@
 """A video player class."""
 
-from .video_library import VideoLibrary
+from video_library import VideoLibrary
 import random
 from collections import defaultdict
+from video_playlist import Playlist
 
 
 
@@ -19,8 +20,7 @@ class VideoPlayer:
         self.title_list = [t.title for t in self._video_library.get_all_videos()]
         self.name_dict = {self.id_list[i]:self.title_list[i] for i in range(len(self.id_list))}
         self.rev_name_dict = {v:k for k,v in self.name_dict.items()}
-        self.playlist_names = []
-        self.playlists = defaultdict(list)
+        self.playlists = {}
 
 
     def number_of_videos(self):
@@ -130,9 +130,9 @@ class VideoPlayer:
         Args:
             playlist_name: The playlist name.
         """
-        if playlist_name.lower() not in self.playlist_names:
+        if playlist_name.lower() not in self.playlists:
             print(f'Successfully created new playlist: {playlist_name}')
-            self.playlist_names.append(playlist_name)
+            self.playlists[playlist_name.lower()] = Playlist(playlist_name)
         else:
             print('Cannot create playlist: A playlist with the same name already exists')
 
@@ -143,22 +143,26 @@ class VideoPlayer:
             playlist_name: The playlist name.
             video_id: The video_id to be added.
         """
-        if playlist_name.lower() not in self.playlist_names:
+        if playlist_name.lower() not in self.playlists:
             print(f'Cannot add video to {playlist_name}: Playlist does not exist')
-        elif playlist_name.lower() in self.playlist_names and (video_id not in self.id_list):
+        elif playlist_name.lower() in self.playlists and (video_id not in self.id_list):
             print(f'Cannot add video to {playlist_name}: Video does not exist')
-        elif playlist_name.lower() in self.playlist_names and (video_id in self.id_list):
+        elif video_id in self.playlists[playlist_name.lower()].videos:
+            print(f'Cannot add video to {playlist_name}: Video already added')
+        elif playlist_name.lower() in self.playlists and (video_id in self.id_list):
+            self.playlists[playlist_name.lower()].videos.append(video_id)
             print(f'Added video to {playlist_name}: {self.name_dict[video_id]}')
-            self.playlists[playlist_name.lower()].append(video_id)
+            
 
 
     def show_all_playlists(self):
         """Display all playlists."""
-        if len(self.playlist_names) < 1:
+        if len(self.playlists) < 1:
             print('No playlists exist yet')
         else:
             print('Showing all playlists:')
-            print(*self.playlist_names,sep='\n')
+            for playlist in sorted(self.playlists):
+                print(f'{self.playlists[playlist].name}')
         
 
     def show_playlist(self, playlist_name):
@@ -167,17 +171,16 @@ class VideoPlayer:
         Args:
             playlist_name: The playlist name.
         """
-        if playlist_name.lower() not in self.playlist_names:
+        if playlist_name.lower() not in self.playlists:
             print(f'Cannot show playlist {playlist_name}: Playlist does not exist')
-        elif playlist_name.lower() in self.playlist_names and playlist_name.lower() not in list(self.playlists.keys()):
+        elif not self.playlists[playlist_name.lower()].videos:
             print(f'Showing playlist: {playlist_name}')
-            print('\tNo videos here yet')
+            print('No videos here yet')
         else:
-            print(f'Show playlist: {playlist_name}')
-            print(f'{self.playlists[playlist_name.lower()]}')
-            for video_id
-                 r = self._video_library.get_video(self.playlists[playlist_name.lower()])
-                 print(f"\t{r.title} ({r.video_id}) [{' '.join(r.tags)}]")
+            print(f'Showing playlist: {playlist_name}')
+            for video_id in self.playlists[playlist_name.lower()].videos:
+                r = self._video_library.get_video(video_id)
+                print(f"{r.title} ({r.video_id}) [{' '.join(r.tags)}]")
 
     def remove_from_playlist(self, playlist_name, video_id):
         """Removes a video to a playlist with a given name.
@@ -186,7 +189,17 @@ class VideoPlayer:
             playlist_name: The playlist name.
             video_id: The video_id to be removed.
         """
-        print("remove_from_playlist needs implementation")
+        if playlist_name.lower() not in self.playlists:
+            print(f'Cannot remove video from {playlist_name}: Playlist does not exist')
+        elif video_id not in self.id_list:
+            print(f'Cannot remove video from {playlist_name}: Video does not exist')
+        elif video_id not in self.playlists[playlist_name.lower()].videos:
+            print(f'Cannot remove video from {playlist_name}: Video is not in playlist')
+        else:
+            self.playlists[playlist_name.lower()].videos.remove(video_id)
+            print(f'Removed video from {playlist_name}: {self.name_dict[video_id]}')
+            
+
 
     def clear_playlist(self, playlist_name):
         """Removes all videos from a playlist with a given name.
@@ -194,7 +207,12 @@ class VideoPlayer:
         Args:
             playlist_name: The playlist name.
         """
-        print("clears_playlist needs implementation")
+        if playlist_name.lower() not in self.playlists:
+            print(f'Cannot clear playlist {playlist_name}: Playlist does not exist')
+        else:
+            self.playlists[playlist_name.lower()].videos.clear()
+            print(f'Successfully removed all videos from {playlist_name}')
+
 
     def delete_playlist(self, playlist_name):
         """Deletes a playlist with a given name.
@@ -202,7 +220,12 @@ class VideoPlayer:
         Args:
             playlist_name: The playlist name.
         """
-        print("deletes_playlist needs implementation")
+        if playlist_name.lower() not in self.playlists:
+            print(f'Cannot delete playlist {playlist_name}: Playlist does not exist')
+        else:
+            del self.playlists[playlist_name.lower()]
+            print(f'Deleted playlist: {playlist_name}')
+
 
     def search_videos(self, search_term):
         """Display all the videos whose titles contain the search_term.
@@ -237,20 +260,10 @@ class VideoPlayer:
         """
         print("allow_video needs implementation")
 
-v = VideoPlayer()
-v.number_of_videos()
-v.show_all_videos()
-v.play_video('amazing_cats_video_id')
-# v.play_video('life_at_google_video_id')
-# v.play_video('another_cat_video_id')
-v.show_playing()
-v.create_playlist('mylist')
-v.create_playlist('MyLIst')
-v.add_to_playlist('mylist','funny_dogs_video_id')
-v.add_to_playlist('mylist','funy_dogs_video_id')
-v.create_playlist('sicklist')
-v.create_playlist('bestplaylist')
-v.show_all_playlists()
-v.add_to_playlist('mylist','life_at_google_video_id')
-v.show_playlist('sicklist')
-v.show_playlist('mylist')
+player = VideoPlayer()
+player.create_playlist("MY_playlist")
+player.add_to_playlist("my_playlist", "amazing_cats_video_id")
+player.add_to_playlist("my_playlist", "life_at_google_video_id")
+player.remove_from_playlist("my_playlist", "amazing_cats_video_id")
+player.add_to_playlist("my_playlist", "amazing_cats_video_id")
+player.show_playlist("my_playLIST")
